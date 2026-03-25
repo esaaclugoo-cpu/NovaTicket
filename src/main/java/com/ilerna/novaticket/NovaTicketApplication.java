@@ -1,13 +1,13 @@
-package com.ilerna.lumievent;
+package com.ilerna.novaticket;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class LumieventApplication {
+public class NovaTicketApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(LumieventApplication.class, args);
+		SpringApplication.run(NovaTicketApplication.class, args);
 	}
 
 }

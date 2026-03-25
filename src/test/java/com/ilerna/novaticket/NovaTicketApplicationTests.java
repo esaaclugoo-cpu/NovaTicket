@@ -1,10 +1,10 @@
-package com.ilerna.lumievent;
+package com.ilerna.novaticket;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class LumieventApplicationTests {
+class NovaTicketApplicationTests {
 
 	@Test
 	void contextLoads() {
