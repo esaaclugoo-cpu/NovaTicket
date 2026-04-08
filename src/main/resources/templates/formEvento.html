@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Formulario Evento</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-4">
+    <h2 th:text="${evento.id == 0} ? 'Agregar Evento' : 'Editar Evento'"></h2>
+    <form th:action="${evento.id == 0} ? @{/eventos/guardar} : @{/eventos/actualizar}" th:object="${evento}" method="post">
+        <input type="hidden" th:field="*{id}" />
+        <input type="hidden" th:field="*{id_lugar}" />
+
+        <div class="mb-3">
+            <label for="nombre" class="form-label">Nombre</label>
+            <input type="text" class="form-control" id="nombre" th:field="*{nombre}" required />
+        </div>
+
+        <div class="mb-3">
+            <label for="descripcion" class="form-label">Descripción</label>
+            <input type="text" class="form-control" id="descripcion" th:field="*{descripcion}" required />
+        </div>
+
+        <div class="mb-3">
+            <label for="fecha" class="form-label">Fecha</label>
+            <input type="date" class="form-control" id="fecha" th:field="*{fecha}" required />
+        </div>
+
+        <div class="mb-3">
+            <label for="aforoMaximo" class="form-label">Aforo Máximo</label>
+            <input type="number" class="form-control" id="aforoMaximo" th:field="*{aforo_maximo}" required />
+        </div>
+
+        <div class="mb-3">
+            <label for="tipoEvento" class="form-label">Tipo Evento</label>
+            <select class="form-select" id="tipoEvento" th:field="*{tipo_evento}" required>
+                <option th:value="concierto">Concierto</option>
+                <option th:value="teatro">Teatro</option>
+                <option th:value="museo">Museo</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="nombreLugar" class="form-label">Nombre Lugar</label>
+            <input type="text" class="form-control" id="nombreLugar" th:field="*{nombre_lugar}" required />
+        </div>
+
+        <div class="mb-3">
+            <label for="direccion" class="form-label">Dirección</label>
+            <input type="text" class="form-control" id="direccion" th:field="*{direccion}" required />
+        </div>
+
+        <div class="mb-3">
+            <label for="ciudad" class="form-label">Ciudad</label>
+            <input type="text" class="form-control" id="ciudad" th:field="*{ciudad}" required />
+        </div>
+
+        <div class="mb-3">
+            <label for="rutaImagen" class="form-label">Ruta Imagen</label>
+            <input type="text" class="form-control" id="rutaImagen" th:field="*{ruta_imagen}" />
+        </div>
+
+        <!-- Campos específicos de subclases -->
+        <div class="mb-3 tipo-specific" id="concierto-fields" style="display:none;">
+            <h5>Campos para Concierto</h5>
+            <label class="form-label">Artista Principal</label>
+            <input type="text" class="form-control" th:field="*{artista_principal}" />
+
+            <label class="form-label">Género Musical</label>
+            <input type="text" class="form-control" th:field="*{genero_musical}" />
+
+            <label class="form-label">Duración (minutos)</label>
+            <input type="number" class="form-control" th:field="*{duracion_minutos}" />
+        </div>
+
+        <div class="mb-3 tipo-specific" id="teatro-fields" style="display:none;">
+            <h5>Campos para Teatro</h5>
+            <label class="form-label">Obra</label>
+            <input type="text" class="form-control" th:field="*{obra}" />
+
+            <label class="form-label">Director</label>
+            <input type="text" class="form-control" th:field="*{director}" />
+        </div>
+
+        <div class="mb-3 tipo-specific" id="museo-fields" style="display:none;">
+            <h5>Campos para Museo</h5>
+            <label class="form-label">Nombre Exposición</label>
+            <input type="text" class="form-control" th:field="*{nombre_exposicion}" />
+
+            <label class="form-label">Tipo Exposición</label>
+            <input type="text" class="form-control" th:field="*{tipo_exposicion}" />
+
+            <label class="form-label">Fecha Fin</label>
+            <input type="date" class="form-control" th:field="*{fecha_fin}" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="/eventos" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('tipoEvento');
+        const tipo = select.value;
+        if (tipo) {
+            document.querySelectorAll('.tipo-specific').forEach(div => div.style.display = 'none');
+            if (tipo === 'concierto') {
+                document.getElementById('concierto-fields').style.display = 'block';
+            } else if (tipo === 'teatro') {
+                document.getElementById('teatro-fields').style.display = 'block';
+            } else if (tipo === 'museo') {
+                document.getElementById('museo-fields').style.display = 'block';
+            }
+        }
+    });
+
+    document.getElementById('tipoEvento').addEventListener('change', function() {
+        const tipo = this.value;
+        document.querySelectorAll('.tipo-specific').forEach(div => div.style.display = 'none');
+        if (tipo === 'concierto') {
+            document.getElementById('concierto-fields').style.display = 'block';
+        } else if (tipo === 'teatro') {
+            document.getElementById('teatro-fields').style.display = 'block';
+        } else if (tipo === 'museo') {
+            document.getElementById('museo-fields').style.display = 'block';
+        }
+    });
+</script>
+
+</body>
+</html>

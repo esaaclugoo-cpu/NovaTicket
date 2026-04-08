@@ -19,22 +19,272 @@ public class EventoDAOJdbc implements EventoDAO{
 
     @Override
     public void guardar(Evento evento) {
+        Connection conn = getConnection();
+        if (conn == null) {
+            System.err.println("❌ No se pudo obtener conexión a la base de datos.");
+            return;
+        }
 
+        // Si es evento nuevo, calculamos el siguiente id_lugar disponible
+        if (evento.getId_lugar() == 0) {
+            try (PreparedStatement ps = conn.prepareStatement("SELECT COALESCE(MAX(id_lugar), 0) + 1 FROM evento");
+                 ResultSet rsLugar = ps.executeQuery()) {
+                if (rsLugar.next()) evento.setId_lugar(rsLugar.getInt(1));
+            } catch (SQLException e) {
+                evento.setId_lugar(1);
+            }
+        }
+
+        String sql = "INSERT INTO evento (nombre, descripcion, fecha, aforo_maximo, tipo_evento, id_lugar, nombre_lugar, direccion, ciudad, ruta_imagen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setString(1, evento.getNombre());
+            pstmt.setString(2, evento.getDescripcion());
+            pstmt.setDate(3, Date.valueOf(evento.getFecha()));
+            pstmt.setInt(4, evento.getAforo_maximo());
+            pstmt.setString(5, evento.getTipo_evento().name());
+            pstmt.setInt(6, evento.getId_lugar());
+            pstmt.setString(7, evento.getNombre_lugar());
+            pstmt.setString(8, evento.getDireccion());
+            pstmt.setString(9, evento.getCiudad());
+            pstmt.setString(10, evento.getRuta_imagen());
+
+            pstmt.executeUpdate();
+
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    int id = rs.getInt(1);
+                    evento.setId(id);
+
+                    switch (evento.getTipo_evento()) {
+                        case concierto:
+                            Concierto c = (Concierto) evento;
+                            String sqlC = "INSERT INTO concierto (id_evento, artista_principal, genero_musical, duracion_minutos) VALUES (?, ?, ?, ?)";
+                            try (PreparedStatement pstmtC = conn.prepareStatement(sqlC)) {
+                                pstmtC.setInt(1, id);
+                                pstmtC.setString(2, c.getArtista_principal());
+                                pstmtC.setString(3, c.getGenero_musical());
+                                pstmtC.setInt(4, c.getDuracion_minutos());
+                                pstmtC.executeUpdate();
+                            }
+                            break;
+                        case teatro:
+                            Teatro t = (Teatro) evento;
+                            String sqlT = "INSERT INTO teatro (id_evento, obra, director) VALUES (?, ?, ?)";
+                            try (PreparedStatement pstmtT = conn.prepareStatement(sqlT)) {
+                                pstmtT.setInt(1, id);
+                                pstmtT.setString(2, t.getObra());
+                                pstmtT.setString(3, t.getDirector());
+                                pstmtT.executeUpdate();
+                            }
+                            break;
+                        case museo:
+                            Museo m = (Museo) evento;
+                            String sqlM = "INSERT INTO museo (id_evento, nombre_exposicion, tipo_exposicion, fecha_fin) VALUES (?, ?, ?, ?)";
+                            try (PreparedStatement pstmtM = conn.prepareStatement(sqlM)) {
+                                pstmtM.setInt(1, id);
+                                pstmtM.setString(2, m.getNombre_exposicion());
+                                pstmtM.setString(3, m.getTipo_exposicion());
+                                pstmtM.setDate(4, Date.valueOf(m.getFecha_fin()));
+                                pstmtM.executeUpdate();
+                            }
+                            break;
+                    }
+                }
+            }
+            System.out.println("✅ Evento guardado correctamente.");
+        } catch (SQLException e) {
+            System.err.println("❌ Error al guardar el evento.");
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void actualizar(Evento evento) {
+         Connection conn = getConnection();
+        if (conn == null) {
+            System.err.println("❌ No se pudo obtener conexión a la base de datos.");
+            return;
+        }
 
+        String sql = "UPDATE evento SET nombre = ?, descripcion = ?, fecha = ?, aforo_maximo = ?, tipo_evento = ?, id_lugar = ?, nombre_lugar = ?, direccion = ?, ciudad = ?, ruta_imagen = ? WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, evento.getNombre());
+            pstmt.setString(2, evento.getDescripcion());
+            pstmt.setDate(3, Date.valueOf(evento.getFecha()));
+            pstmt.setInt(4, evento.getAforo_maximo());
+            pstmt.setString(5, evento.getTipo_evento().name());
+            pstmt.setInt(6, evento.getId_lugar());
+            pstmt.setString(7, evento.getNombre_lugar());
+            pstmt.setString(8, evento.getDireccion());
+            pstmt.setString(9, evento.getCiudad());
+            pstmt.setString(10, evento.getRuta_imagen());
+            pstmt.setInt(11, evento.getId());
+
+            int rows = pstmt.executeUpdate();
+            if (rows > 0) {
+                // Update subclass table
+                updateSubclass(evento);
+                System.out.println("✅ Evento actualizado correctamente.");
+            } else {
+                System.err.println("❌ No se encontró el evento para actualizar.");
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error al actualizar el evento.");
+            e.printStackTrace();
+        }
+    }
+
+    private void updateSubclass(Evento evento) {
+        Connection conn = getConnection();
+        if (conn == null) return;
+
+        try {
+            switch (evento.getTipo_evento()) {
+                case concierto:
+                    Concierto c = (Concierto) evento;
+                    String sqlC = "UPDATE concierto SET artista_principal = ?, genero_musical = ?, duracion_minutos = ? WHERE id_evento = ?";
+                    try (PreparedStatement pstmt = conn.prepareStatement(sqlC)) {
+                        pstmt.setString(1, c.getArtista_principal());
+                        pstmt.setString(2, c.getGenero_musical());
+                        pstmt.setInt(3, c.getDuracion_minutos());
+                        pstmt.setInt(4, evento.getId());
+                        pstmt.executeUpdate();
+                    }
+                    break;
+                case teatro:
+                    Teatro t = (Teatro) evento;
+                    String sqlT = "UPDATE teatro SET obra = ?, director = ? WHERE id_evento = ?";
+                    try (PreparedStatement pstmt = conn.prepareStatement(sqlT)) {
+                        pstmt.setString(1, t.getObra());
+                        pstmt.setString(2, t.getDirector());
+                        pstmt.setInt(3, evento.getId());
+                        pstmt.executeUpdate();
+                    }
+                    break;
+                case museo:
+                    Museo m = (Museo) evento;
+                    String sqlM = "UPDATE museo SET nombre_exposicion = ?, tipo_exposicion = ?, fecha_fin = ? WHERE id_evento = ?";
+                    try (PreparedStatement pstmt = conn.prepareStatement(sqlM)) {
+                        pstmt.setString(1, m.getNombre_exposicion());
+                        pstmt.setString(2, m.getTipo_exposicion());
+                        pstmt.setDate(3, m.getFecha_fin() != null ? Date.valueOf(m.getFecha_fin()) : null);
+                        pstmt.setInt(4, evento.getId());
+                        pstmt.executeUpdate();
+                    }
+                    break;
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error al actualizar la subclase.");
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void eliminar(int id) {
+        Connection conn = getConnection();
+        if (conn == null) {
+            System.err.println("❌ No se pudo obtener conexión a la base de datos.");
+            return;
+        }
 
+        String sql = "DELETE FROM evento WHERE id = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            int rows = pstmt.executeUpdate();
+            if (rows > 0) {
+                System.out.println("✅ Evento eliminado correctamente.");
+            } else {
+                System.err.println("❌ No se encontró el evento para eliminar.");
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error al eliminar el evento.");
+            e.printStackTrace();
+        }
     }
 
     @Override
     public Evento obtenerPorId(int id) {
-        return null;
+        Evento evento = null;
+        String sql = "SELECT * FROM evento WHERE id = ?";
+
+        Connection conn = getConnection();
+        if (conn == null) {
+            System.err.println("❌ No se pudo obtener conexión a la base de datos.");
+            return evento;
+        }
+
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, id);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    evento = mapearEvento(rs);
+                    // Load subclass data
+                    if (evento != null) {
+                        loadSubclassData(evento);
+                    }
+                }
+            }
+            System.out.println("✅ Evento obtenido correctamente.");
+        } catch (SQLException e) {
+            System.err.println("❌ Error al obtener el evento.");
+            e.printStackTrace();
+        }
+        return evento;
+    }
+
+    private void loadSubclassData(Evento evento) {
+        Connection conn = getConnection();
+        if (conn == null) return;
+
+        try {
+            switch (evento.getTipo_evento()) {
+                case concierto:
+                    String sqlC = "SELECT * FROM concierto WHERE id_evento = ?";
+                    try (PreparedStatement pstmt = conn.prepareStatement(sqlC)) {
+                        pstmt.setInt(1, evento.getId());
+                        try (ResultSet rs = pstmt.executeQuery()) {
+                            if (rs.next()) {
+                                Concierto c = (Concierto) evento;
+                                c.setArtista_principal(rs.getString("artista_principal"));
+                                c.setGenero_musical(rs.getString("genero_musical"));
+                                c.setDuracion_minutos(rs.getInt("duracion_minutos"));
+                            }
+                        }
+                    }
+                    break;
+                case teatro:
+                    String sqlT = "SELECT * FROM teatro WHERE id_evento = ?";
+                    try (PreparedStatement pstmt = conn.prepareStatement(sqlT)) {
+                        pstmt.setInt(1, evento.getId());
+                        try (ResultSet rs = pstmt.executeQuery()) {
+                            if (rs.next()) {
+                                Teatro t = (Teatro) evento;
+                                t.setObra(rs.getString("obra"));
+                                t.setDirector(rs.getString("director"));
+                            }
+                        }
+                    }
+                    break;
+                case museo:
+                    String sqlM = "SELECT * FROM museo WHERE id_evento = ?";
+                    try (PreparedStatement pstmt = conn.prepareStatement(sqlM)) {
+                        pstmt.setInt(1, evento.getId());
+                        try (ResultSet rs = pstmt.executeQuery()) {
+                            if (rs.next()) {
+                                Museo m = (Museo) evento;
+                                m.setNombre_exposicion(rs.getString("nombre_exposicion"));
+                                m.setTipo_exposicion(rs.getString("tipo_exposicion"));
+                                Date fechaFin = rs.getDate("fecha_fin");
+                                m.setFecha_fin(fechaFin != null ? fechaFin.toLocalDate() : null);
+                            }
+                        }
+                    }
+                    break;
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Error al cargar datos de subclase.");
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -51,7 +301,11 @@ public class EventoDAOJdbc implements EventoDAO{
         try (PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
             while (rs.next()) {
-                eventos.add(mapearEvento(rs));
+                Evento evento = mapearEvento(rs);
+                if (evento != null) {
+                    loadSubclassData(evento);
+                }
+                eventos.add(evento);
             }
             System.out.println("✅ Listado de eventos recuperado correctamente.");
         } catch (SQLException e) {
@@ -66,6 +320,7 @@ public class EventoDAOJdbc implements EventoDAO{
         String nombre = rs.getString("nombre");
         String descripcion = rs.getString("descripcion");
         LocalDate fecha = rs.getDate("fecha").toLocalDate();
+        int aforo_maximo = rs.getInt("aforo_maximo");
         int id_lugar = rs.getInt("id_lugar");
         String nombre_lugar = rs.getString("nombre_lugar");
         String direccion = rs.getString("direccion");
@@ -90,6 +345,7 @@ public class EventoDAOJdbc implements EventoDAO{
             evento.setNombre(nombre);
             evento.setDescripcion(descripcion);
             evento.setFecha(fecha);
+            evento.setAforo_maximo(aforo_maximo);
             evento.setId_lugar(id_lugar);
             evento.setNombre_lugar(nombre_lugar);
             evento.setDireccion(direccion);
