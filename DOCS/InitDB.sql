@@ -17,7 +17,7 @@ CREATE TABLE evento (
     fecha DATE NOT NULL,
     aforo_maximo INT NOT NULL,
     tipo_evento ENUM('concierto','museo','teatro') NOT NULL,
-    id_lugar INT NOT NULL,
+    id_lugar INT NOT NULL  ,
     nombre_lugar VARCHAR(100) NOT NULL,
     direccion VARCHAR(255) NOT NULL,
     ciudad VARCHAR(100) NOT NULL,
